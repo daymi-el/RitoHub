@@ -10,7 +10,7 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning={true}>
         <body
-            className={`antialiased overflow-y-auto overflow-x-hidden`}
+            className={`antialiased`}
         >
         <ThemeProvider
             attribute={"class"}
