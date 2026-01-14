@@ -1,0 +1,11 @@
+{
+  "name": "my-tauri-app",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "cd tauri && tauri dev",
+    "build": "cd tauri && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "latest"
+  }
+}
