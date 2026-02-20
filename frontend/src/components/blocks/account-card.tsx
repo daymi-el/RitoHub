@@ -9,6 +9,7 @@ import {Button} from "@/components/ui/button";
 import {LogIn, Trash2, TrendingUp} from "lucide-react";
 import type {LeagueEntryDTO} from "@zqz979/league-api-wrapper";
 import {Link} from "@tanstack/react-router";
+import {invoke} from "@tauri-apps/api/core";
 
 const APEX_TIERS = ["MASTER", "GRANDMASTER", "CHALLENGER"];
 
@@ -26,23 +27,35 @@ interface AccountCardProps {
 
 export function AccountCard({account}: AccountCardProps) {
 
+    const handleLogin = async () => {
+        try {
+            await invoke("switch_riot_account", {
+                username: account.userName,
+                password: account.password,
+            });
+        } catch (error) {
+            console.error("Failed to switch Riot account", error);
+        }
+    };
+
     const soloDuoData = account.leagueData.find(
         (data) => data.queueType === "RANKED_SOLO_5x5"
     );
 
     return soloDuoData ? (
-        <RankedAccountCard account={account} stats={soloDuoData}/>
+        <RankedAccountCard account={account} stats={soloDuoData} onLogin={handleLogin}/>
     ) : (
-        <UnrankedAccountCard account={account}/>
+        <UnrankedAccountCard account={account} onLogin={handleLogin}/>
     );
 }
 
 interface RankedAccountCardProps {
     account: Account;
     stats: LeagueEntryDTO;
+    onLogin: () => void;
 }
 
-function RankedAccountCard({account, stats}: RankedAccountCardProps) {
+function RankedAccountCard({account, stats, onLogin}: RankedAccountCardProps) {
 
     const {removeAccount} = useAccounts();
 
@@ -53,9 +66,7 @@ function RankedAccountCard({account, stats}: RankedAccountCardProps) {
                 <DeleteAccountButton
                     onDelete={() => removeAccount(account.userName)}
                 />
-                <LoginAccountButton
-                    onLogin={() => console.log(account.userName)}
-                />
+                <LoginAccountButton onLogin={onLogin}/>
             </div>
             <AccountCardHeader
                 account={account}
@@ -69,9 +80,10 @@ function RankedAccountCard({account, stats}: RankedAccountCardProps) {
 
 interface UnrankedAccountCardProps {
     account: Account;
+    onLogin: () => void;
 }
 
-function UnrankedAccountCard({account}: UnrankedAccountCardProps) {
+function UnrankedAccountCard({account, onLogin}: UnrankedAccountCardProps) {
     const {removeAccount} = useAccounts();
 
     return (
@@ -81,6 +93,7 @@ function UnrankedAccountCard({account}: UnrankedAccountCardProps) {
                 <DeleteAccountButton
                     onDelete={() => removeAccount(account.userName)}
                 />
+                <LoginAccountButton onLogin={onLogin}/>
             </div>
             <AccountCardHeader
                 account={account}
