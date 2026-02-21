@@ -34,7 +34,7 @@ fn run_windows_login_automation(username: &str, password: &str) -> Result<(), St
         r#"Start-Sleep -Seconds 6
 $wshell = New-Object -ComObject WScript.Shell
 if (-not $wshell.AppActivate('Riot Client')) {{ exit 0 }}
-Start-Sleep -Milliseconds 700
+Start-Sleep -Milliseconds 500
 Set-Clipboard -Value "{escaped_username}"
 $wshell.SendKeys('^v')
 Start-Sleep -Milliseconds 100
