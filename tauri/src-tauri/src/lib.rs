@@ -27,23 +27,26 @@ fn launch_riot_client(riot_client_path: &PathBuf) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn run_windows_login_automation(username: &str, password: &str) -> Result<(), String> {
-    let escaped_username = username.replace('`', "``").replace('"', "`\"");
-    let escaped_password = password.replace('`', "``").replace('"', "`\"");
+    let escaped_username = username.replace('"', "``\"").replace('`', "``");
+    let escaped_password = password.replace('"', "``\"").replace('`', "``");
 
     let script = format!(
-        r#"Start-Sleep -Seconds 6
+        r#"Add-Type -AssemblyName System.Windows.Forms
+Start-Sleep -Seconds 6
 $wshell = New-Object -ComObject WScript.Shell
 if (-not $wshell.AppActivate('Riot Client')) {{ exit 0 }}
-Start-Sleep -Milliseconds 500
-Set-Clipboard -Value "{escaped_username}"
-$wshell.SendKeys('^v')
-Start-Sleep -Milliseconds 100
-$wshell.SendKeys('{{TAB}}')
-Start-Sleep -Milliseconds 100
-Set-Clipboard -Value "{escaped_password}"
-$wshell.SendKeys('^v')
-Start-Sleep -Milliseconds 100
-$wshell.SendKeys('{{ENTER}}')"#,
+Start-Sleep -Seconds 1
+[System.Windows.Forms.Clipboard]::SetText("{escaped_username}")
+Start-Sleep -Milliseconds 300
+[System.Windows.Forms.SendKeys]::SendWait('^v')
+Start-Sleep -Milliseconds 300
+[System.Windows.Forms.SendKeys]::SendWait('{{TAB}}')
+Start-Sleep -Milliseconds 200
+[System.Windows.Forms.Clipboard]::SetText("{escaped_password}")
+Start-Sleep -Milliseconds 300
+[System.Windows.Forms.SendKeys]::SendWait('^v')
+Start-Sleep -Milliseconds 200
+[System.Windows.Forms.SendKeys]::SendWait('{{ENTER}}')"#,
     );
 
     Command::new("powershell")
