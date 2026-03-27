@@ -1,0 +1,60 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": [
+    {
+      "directory": "frontend",
+      "changeProcessCWD": true
+    }
+  ],
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "code-runner.runInTerminal": true,
+  "code-runner.saveFileBeforeRun": true,
+  "code-runner.clearPreviousOutput": true,
+  "code-runner.ignoreSelection": true,
+  "code-runner.executorMapByFileExtension": {
+    ".ts": "cd \"$workspaceRoot/frontend\"; npm run dev",
+    ".tsx": "cd \"$workspaceRoot/frontend\"; npm run dev",
+    ".rs": "cd \"$workspaceRoot/tauri/src-tauri\"; cargo run"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/dist-codex": true,
+    "**/dist-codex-verify": true,
+    "**/target": true,
+    "frontend/public/dragontail-16.5.1": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/dist-codex/**": true,
+    "**/dist-codex-verify/**": true,
+    "**/target/**": true,
+    "frontend/public/dragontail-16.5.1/**": true
+  },
+  "rust-analyzer.linkedProjects": [
+    "tauri/src-tauri/Cargo.toml"
+  ],
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  }
+}
