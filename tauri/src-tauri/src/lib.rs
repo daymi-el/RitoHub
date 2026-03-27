@@ -1,149 +1,34 @@
-use std::path::PathBuf;
-use std::process::Command;
+mod app_state;
+mod leagueofgraphs;
+mod commands;
+mod riot_api;
+mod riot_client;
+mod secure_storage;
 
-#[tauri::command]
-fn switch_riot_account(username: String, password: String) -> Result<(), String> {
-    close_riot_clients();
-
-    let riot_client_path = find_riot_client_path()
-        .ok_or_else(|| "Unable to find Riot Client installation path".to_string())?;
-
-    launch_riot_client(&riot_client_path)?;
-
-    #[cfg(target_os = "windows")]
-    run_windows_login_automation(&username, &password)?;
-
-    Ok(())
-}
-
-fn launch_riot_client(riot_client_path: &PathBuf) -> Result<(), String> {
-    Command::new(riot_client_path)
-        .arg("--allow-multiple-clients")
-        .spawn()
-        .map_err(|err| format!("Failed to launch Riot Client: {err}"))?;
-
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn run_windows_login_automation(username: &str, password: &str) -> Result<(), String> {
-    let escaped_username = username.replace('"', "``\"").replace('`', "``");
-    let escaped_password = password.replace('"', "``\"").replace('`', "``");
-
-    let script = format!(
-        r#"Add-Type -AssemblyName System.Windows.Forms
-Start-Sleep -Seconds 6
-$wshell = New-Object -ComObject WScript.Shell
-if (-not $wshell.AppActivate('Riot Client')) {{ exit 0 }}
-Start-Sleep -Seconds 1
-[System.Windows.Forms.Clipboard]::SetText("{escaped_username}")
-Start-Sleep -Milliseconds 300
-[System.Windows.Forms.SendKeys]::SendWait('^v')
-Start-Sleep -Milliseconds 300
-[System.Windows.Forms.SendKeys]::SendWait('{{TAB}}')
-Start-Sleep -Milliseconds 200
-[System.Windows.Forms.Clipboard]::SetText("{escaped_password}")
-Start-Sleep -Milliseconds 300
-[System.Windows.Forms.SendKeys]::SendWait('^v')
-Start-Sleep -Milliseconds 200
-[System.Windows.Forms.SendKeys]::SendWait('{{ENTER}}')"#,
-    );
-
-    Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-            &script,
-        ])
-        .spawn()
-        .map_err(|err| format!("Failed to automate Riot login on Windows: {err}"))?;
-
-    Ok(())
-}
-
-fn close_riot_clients() {
-    #[cfg(target_os = "windows")]
-    {
-        let process_names = [
-            "RiotClientServices.exe",
-            "RiotClientUx.exe",
-            "RiotClientUxRender.exe",
-            "LeagueClient.exe",
-            "LeagueClientUx.exe",
-            "LeagueClientUxRender.exe",
-        ];
-
-        for process_name in process_names {
-            let _ = Command::new("taskkill")
-                .args(["/F", "/IM", process_name])
-                .output();
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let process_names = [
-            "Riot Client",
-            "RiotClientServices",
-            "RiotClientUx",
-            "RiotClientUxRender",
-            "LeagueClient",
-            "LeagueClientUx",
-            "LeagueClientUxRender",
-        ];
-
-        for process_name in process_names {
-            let _ = Command::new("pkill").args(["-f", process_name]).output();
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let process_names = [
-            "RiotClientServices",
-            "RiotClientUx",
-            "RiotClientUxRender",
-            "LeagueClient",
-            "LeagueClientUx",
-            "LeagueClientUxRender",
-        ];
-
-        for process_name in process_names {
-            let _ = Command::new("pkill").args(["-f", process_name]).output();
-        }
-    }
-}
-
-fn find_riot_client_path() -> Option<PathBuf> {
-    if let Ok(custom_path) = std::env::var("RIOT_CLIENT_PATH") {
-        let custom = PathBuf::from(custom_path);
-        if custom.exists() {
-            return Some(custom);
-        }
-    }
-
-    let candidates = [
-        r"C:\Riot Games\Riot Client\RiotClientServices.exe",
-        r"C:\Program Files\Riot Games\Riot Client\RiotClientServices.exe",
-        "/Applications/Riot Client.app/Contents/MacOS/Riot Client",
-    ];
-
-    candidates
-        .iter()
-        .map(PathBuf::from)
-        .find(|candidate| candidate.exists())
-}
+use app_state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let app_state = AppState::new();
+
+    if let Some(error) = app_state.riot_api_error() {
+        eprintln!("Riot API commands are unavailable: {error}");
+    }
+
     tauri::Builder::default()
+        .manage(app_state)
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![switch_riot_account])
+        .invoke_handler(tauri::generate_handler![
+            commands::switch_riot_account,
+            commands::lookup_riot_account,
+            commands::get_summoner_profile,
+            commands::get_riot_account_by_puuid,
+            commands::get_league_entries,
+            commands::get_current_game,
+            commands::get_match_history,
+            commands::load_accounts_storage,
+            commands::save_accounts_storage
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

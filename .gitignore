@@ -1,1 +1,5 @@
 node_modules
+.idea
+RitoHub.iml
+frontend/dist*
+tauri/src-tauri/target

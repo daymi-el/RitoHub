@@ -105,6 +105,17 @@
   --sidebar-border: oklch(0.9401 0 0);
   --sidebar-ring: oklch(0.7731 0 0);
   --destructive-foreground: oklch(1.0000 0 0);
+    --tier-iron: oklch(0.55 0.01 260);
+    --tier-bronze: oklch(0.55 0.08 55);
+    --tier-silver: oklch(0.75 0.01 260);
+    --tier-gold: oklch(0.78 0.12 80);
+    --tier-platinum: oklch(0.72 0.08 190);
+    --tier-emerald: oklch(0.68 0.14 155);
+    --tier-diamond: oklch(0.75 0.10 245);
+    --tier-master: oklch(0.62 0.16 300);
+    --tier-grandmaster: oklch(0.60 0.18 25);
+    --tier-challenger: oklch(0.82 0.12 85);
+    --tier-unranked: oklch(0.45 0.00 0);
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -160,6 +171,17 @@
   --sidebar-border: oklch(0.2739 0.0055 286.0326);
   --sidebar-ring: oklch(0.8711 0.0055 286.2860);
   --destructive-foreground: oklch(1.0000 0 0);
+    --tier-iron: oklch(0.55 0.01 260);
+    --tier-bronze: oklch(0.55 0.08 55);
+    --tier-silver: oklch(0.75 0.01 260);
+    --tier-gold: oklch(0.78 0.12 80);
+    --tier-platinum: oklch(0.72 0.08 190);
+    --tier-emerald: oklch(0.68 0.14 155);
+    --tier-diamond: oklch(0.75 0.10 245);
+    --tier-master: oklch(0.62 0.16 300);
+    --tier-grandmaster: oklch(0.60 0.18 25);
+    --tier-challenger: oklch(0.82 0.12 85);
+    --tier-unranked: oklch(0.45 0.00 0);
   --radius: 0.5rem;
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -191,4 +213,66 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+}
+
+/* === RitoHub Dashboard Animations === */
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes slide-in-row {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes tier-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@keyframes login-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 oklch(0.9247 0.0524 66.1732 / 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px oklch(0.9247 0.0524 66.1732 / 0);
+    }
+}
+
+@layer utilities {
+    .skeleton {
+        background: linear-gradient(90deg, var(--muted) 25%, var(--accent) 50%, var(--muted) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s ease-in-out infinite;
+        border-radius: var(--radius-md);
+    }
+
+    .animate-row-in {
+        animation: slide-in-row 0.3s ease-out both;
+        animation-delay: calc(var(--row-index, 0) * 50ms);
+    }
+
+    .animate-tier-pulse {
+        animation: tier-pulse 3s ease-in-out infinite;
+    }
+
+    .animate-login-pulse {
+        animation: login-pulse 1.5s ease-in-out infinite;
+    }
 }

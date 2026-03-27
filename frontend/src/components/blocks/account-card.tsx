@@ -1,217 +1,264 @@
-import type {Account} from "@/lib/types";
-import {Card, CardContent, CardFooter, CardHeader,} from "@/components/ui/card";
-import {Progress} from "@/components/ui/progress";
-import {Tooltip, TooltipContent, TooltipTrigger,} from "@/components/ui/tooltip";
-import {Badge} from "@/components/ui/badge";
-import {Avatar, AvatarImage} from "@/components/ui/avatar";
-import {useAccounts} from "@/providers/accounts-provider";
-import {Button} from "@/components/ui/button";
-import {LogIn, Trash2, TrendingUp} from "lucide-react";
-import type {LeagueEntryDTO} from "@zqz979/league-api-wrapper";
-import {Link} from "@tanstack/react-router";
-import {invoke} from "@tauri-apps/api/core";
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { History, Loader2, LogIn, Radio, RefreshCw, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  APEX_TIERS,
+  SOLO_DUO_QUEUE,
+  calculateLeagueWinrate,
+  formatLeagueRankLabel,
+  getTierAccentColor,
+} from "@/lib/league-rank";
+import { fetchSummonerProfile } from "@/lib/riot-api";
+import { alertRiotLoginError, loginToRiotAccount } from "@/lib/riot-client";
+import { getPlatformLabel, getRankEmblemPath } from "@/lib/riot";
+import type { Account } from "@/lib/types";
+import { useAccounts } from "@/providers/accounts-context";
 
-const APEX_TIERS = ["MASTER", "GRANDMASTER", "CHALLENGER"];
-
-const toTitleCase = (str: string) =>
-    str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-
-const calculateWinrate = (wins: number, losses: number): number => {
-    const total = wins + losses;
-    return total > 0 ? Math.round((wins / total) * 100) : 0;
-};
-
-interface AccountCardProps {
-    account: Account;
+interface AccountRowProps {
+  account: Account;
+  index?: number;
 }
 
-export function AccountCard({account}: AccountCardProps) {
+export function AccountRow({ account, index }: AccountRowProps) {
+  const { removeAccount, updateAccount } = useAccounts();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const rankedStats = account.leagueData.find(
+    (queue) => queue.queueType === SOLO_DUO_QUEUE,
+  );
 
-    const handleLogin = async () => {
-        try {
-            await invoke("switch_riot_account", {
-                username: account.userName,
-                password: account.password,
-            });
-        } catch (error) {
-            console.error("Failed to switch Riot account", error);
-        }
-    };
+  const tier = rankedStats?.tier;
+  const tierColor = getTierAccentColor(tier);
+  const isApexTier = tier ? APEX_TIERS.has(tier) : false;
+  const winrate = rankedStats
+    ? calculateLeagueWinrate(rankedStats.wins, rankedStats.losses)
+    : null;
 
-    const soloDuoData = account.leagueData.find(
-        (data) => data.queueType === "RANKED_SOLO_5x5"
-    );
+  async function handleLogin() {
+    try {
+      await loginToRiotAccount(account);
+    } catch (error) {
+      console.error("Failed to switch Riot account", error);
+      alertRiotLoginError(error);
+    }
+  }
 
-    return soloDuoData ? (
-        <RankedAccountCard account={account} stats={soloDuoData} onLogin={handleLogin}/>
-    ) : (
-        <UnrankedAccountCard account={account} onLogin={handleLogin}/>
-    );
-}
+  async function handleRefresh() {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const { riotData, leagueData } = await fetchSummonerProfile(
+        account.riotData.puuid,
+        account.platform,
+        {
+          gameName: account.gameName,
+          tagLine: account.tagLine,
+        },
+      );
+      updateAccount(account.userName, {
+        gameName: riotData.gameName ?? account.gameName,
+        tagLine: riotData.tagLine ?? account.tagLine,
+        riotData,
+        leagueData,
+      });
+    } catch (error) {
+      console.error("Failed to refresh account", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
-interface RankedAccountCardProps {
-    account: Account;
-    stats: LeagueEntryDTO;
-    onLogin: () => void;
-}
+  return (
+    <div
+      className="animate-row-in group flex h-[4.5rem] items-center gap-3 rounded-xl border border-border/50 bg-card px-4 transition-all hover:shadow-[inset_3px_0_12px_-4px_var(--row-tier),0_0_12px_-4px_var(--row-tier)]"
+      style={
+        {
+          "--row-tier": tierColor,
+          "--row-index": index ?? 0,
+          background: `linear-gradient(to right, color-mix(in oklch, ${tierColor} 6%, transparent), transparent 60%)`,
+        } as React.CSSProperties
+      }
+    >
+      {/* Tier accent bar */}
+      <div
+        className={`h-8 w-1 shrink-0 rounded-full transition-all duration-300 group-hover:h-full group-hover:shadow-[0_0_8px_var(--row-tier)] ${isApexTier ? "animate-tier-pulse" : ""}`}
+        style={{ backgroundColor: tierColor }}
+      />
 
-function RankedAccountCard({account, stats, onLogin}: RankedAccountCardProps) {
+      {/* Rank emblem */}
+      <img
+        src={getRankEmblemPath(tier)}
+        alt=""
+        className="size-10 shrink-0 object-contain transition-all duration-200 group-hover:drop-shadow-[0_0_6px_var(--row-tier)]"
+        loading="lazy"
+      />
 
-    const {removeAccount} = useAccounts();
+      {/* Name block */}
+      <div className="min-w-0 w-36 shrink-0">
+        <p className="truncate text-sm font-semibold">
+          {account.gameName}
+          <span className="text-muted-foreground/70 text-xs">#{account.tagLine}</span>
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {getPlatformLabel(account.platform)}
+        </p>
+      </div>
 
-    return (
-        <Card className="group relative w-full max-w-sm min-w-2xs flex justify-between">
-            <div
-                className="absolute top-0 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity justify-between w-full p-2">
-                <DeleteAccountButton
-                    onDelete={() => removeAccount(account.userName)}
-                />
-                <LoginAccountButton onLogin={onLogin}/>
-            </div>
-            <AccountCardHeader
-                account={account}
-                rankImagePath={`/rank-emblems/Rank=${toTitleCase(stats.tier)}.png`}
-            />
-            <CardContent></CardContent>
-            <AccountCardFooter stats={stats}/>
-        </Card>
-    );
-}
+      {/* Rank text */}
+      <span
+        className="w-24 shrink-0 text-sm font-bold tracking-tight"
+        style={{ color: tierColor }}
+      >
+        {rankedStats ? formatLeagueRankLabel(rankedStats) : "Unranked"}
+      </span>
 
-interface UnrankedAccountCardProps {
-    account: Account;
-    onLogin: () => void;
-}
+      {/* LP display */}
+      {rankedStats ? (
+        <span className="hidden w-16 shrink-0 text-sm text-muted-foreground sm:block">
+          {rankedStats.leaguePoints} LP
+        </span>
+      ) : (
+        <span className="hidden w-16 shrink-0 sm:block" />
+      )}
 
-function UnrankedAccountCard({account, onLogin}: UnrankedAccountCardProps) {
-    const {removeAccount} = useAccounts();
+      {/* Win rate + W/L stats */}
+      <span className="hidden w-36 shrink-0 text-xs text-muted-foreground md:block">
+        {rankedStats
+          ? `${winrate}% WR · ${rankedStats.wins}W ${rankedStats.losses}L`
+          : ""}
+      </span>
 
-    return (
-        <Card className="group relative w-full max-w-sm min-w-2xs flex justify-between">
-            <div
-                className={"absolute top-0 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity justify-between w-full p-2"}>
-                <DeleteAccountButton
-                    onDelete={() => removeAccount(account.userName)}
-                />
-                <LoginAccountButton onLogin={onLogin}/>
-            </div>
-            <AccountCardHeader
-                account={account}
-                rankImagePath="/rank-emblems/Rank=Unranked.png"
-            />
-            <CardContent>
-                <div className="flex flex-row items-center justify-center gap-2 text-muted-foreground">
-                    <TrendingUp className="w-8 h-8"/>
-                    <p className="text-sm font-medium">No Ranked Data</p>
-                </div>
-            </CardContent>
-            <CardFooter className="flex justify-center">
-                <Badge variant="secondary">Unranked</Badge>
-            </CardFooter>
-        </Card>
-    );
-}
+      {/* Spacer */}
+      <div className="flex-1" />
 
-interface LoginAccountButtonProps {
-    onLogin: () => void;
-}
-
-export function LoginAccountButton({onLogin}: LoginAccountButtonProps) {
-    return (
+      {/* Actions */}
+      <div className="flex shrink-0 items-center gap-1">
         <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    variant="secondary"
-                    size="icon-sm"
-                    onClick={onLogin}
-                >
-                    <LogIn/>
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-                <span>Log into account</span>
-            </TooltipContent>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              asChild
+              className="relative"
+            >
+              <Link
+                to="/lol/summoners/$puuid/live-game"
+                params={{ puuid: account.riotData.puuid }}
+              >
+                <Radio className="size-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="animate-live-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
+                  <span className="animate-live-dot relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <span>Live game</span>
+          </TooltipContent>
         </Tooltip>
-    )
-}
-
-interface DeleteAccountButtonProps {
-    onDelete: () => void;
-}
-
-function DeleteAccountButton({onDelete}: DeleteAccountButtonProps) {
-    return (
         <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={onDelete}
-                >
-                    <Trash2/>
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-                <span>Remove Account</span>
-            </TooltipContent>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              asChild
+            >
+              <Link
+                to="/lol/summoners/$puuid/overview"
+                params={{ puuid: account.riotData.puuid }}
+                search={{ platform: account.platform }}
+              >
+                <History className="size-3.5" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <span>Match history</span>
+          </TooltipContent>
         </Tooltip>
-    );
+        <LoginAccountButton onLogin={handleLogin} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              aria-busy={isRefreshing}
+            >
+              <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <span>{isRefreshing ? "Refreshing..." : "Refresh account"}</span>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+              onClick={() => removeAccount(account.userName)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <span>Remove account</span>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
 }
 
-interface AccountCardHeaderProps {
-    account: Account;
-    rankImagePath: string;
-}
+export function LoginAccountButton({
+  onLogin,
+}: {
+  onLogin: () => Promise<void>;
+}) {
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-function AccountCardHeader({
-                               account,
-                               rankImagePath,
-                           }: AccountCardHeaderProps) {
-    return (
-        <CardHeader className="flex flex-col items-center gap-3">
-            <Avatar className="h-16 w-16 rounded-lg">
-                <AvatarImage src={rankImagePath} alt=""/>
-            </Avatar>
-            <Link to={"/lol/summoners/$puuid/overview"} params={{puuid: account.riotData.puuid}}>
-                <Button variant={"link"} className={"text-white hover:text-primary"}>
-                    {account.gameName}#{account.tagLine}
-                </Button>
-            </Link>
-        </CardHeader>
-    );
-}
+  async function handleClick() {
+    if (isLoggingIn) {
+      return;
+    }
 
-interface AccountCardFooterProps {
-    stats: LeagueEntryDTO;
-}
+    setIsLoggingIn(true);
 
-function AccountCardFooter({stats}: AccountCardFooterProps) {
-    const winrate = calculateWinrate(stats.wins, stats.losses);
-    const isApexTier = APEX_TIERS.includes(stats.tier);
+    try {
+      await onLogin();
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
 
-    return (
-        <CardFooter className="flex flex-col items-start gap-2">
-            <div className="flex flex-row w-full justify-between">
-                <p className="font-semibold">
-                    {stats.tier} {!isApexTier && stats.rank}
-                </p>
-                <div className="flex justify-end items-center gap-1">
-                    <Badge
-                        variant="outline"
-                        className={winrate >= 50 ? "bg-green-800" : "bg-red-800"}
-                    >
-                        {winrate}% W/L
-                    </Badge>
-                </div>
-            </div>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Progress value={stats.leaguePoints} max={100}/>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p className="font-bold">{stats.leaguePoints}LP</p>
-                </TooltipContent>
-            </Tooltip>
-        </CardFooter>
-    );
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon-sm"
+          className={isLoggingIn ? "animate-login-pulse" : ""}
+          onClick={handleClick}
+          disabled={isLoggingIn}
+          aria-busy={isLoggingIn}
+        >
+          {isLoggingIn ? <Loader2 className="animate-spin" /> : <LogIn />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <span>{isLoggingIn ? "Logging in..." : "Log into account"}</span>
+      </TooltipContent>
+    </Tooltip>
+  );
 }

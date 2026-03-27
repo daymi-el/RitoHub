@@ -1,14 +1,12 @@
 {
-  "name": "my-tauri-app",
+  "name": "ritohub",
+  "private": true,
   "scripts": {
     "tauri": "tauri",
     "dev": "cd tauri && tauri dev",
     "build": "cd tauri && tauri build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "latest"
-  },
-  "dependencies": {
-    "@tauri-apps/plugin-store": "^2.4.2"
+    "@tauri-apps/cli": "^2.9.6"
   }
 }
