@@ -1,6 +1,6 @@
 mod app_state;
-mod leagueofgraphs;
 mod commands;
+mod leagueofgraphs;
 mod riot_api;
 mod riot_client;
 mod secure_storage;
